@@ -144,7 +144,3 @@ func New(cmd string) *Cmd {
 	}
 	return &Cmd{Name: name, Args: args}
 }
-
-func NewWithArray(cmd string, args ...string) *Cmd {
-	return &Cmd{Name: cmd, Args: args}
-}
