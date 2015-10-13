@@ -12,17 +12,17 @@ import (
 	"github.com/kballard/go-shellquote"
 )
 
-// OSX only
-func Copy(data string) (err error) {
+// Copy OSX only
+func Copy(data string) error {
 	echo := New("echo").WithArgs(data)
 	copy := New("pbcopy")
-	_, _, err = Pipeline(echo, copy)
-	return
+	_, _, err := Pipeline(echo, copy)
+	return err
 }
 
 // OSX only
 func Open(location string) error {
-	return New("open").WithArg(location).Run()
+	return New("open").WithArgs(location).Run()
 }
 
 type Cmd struct {
@@ -34,17 +34,10 @@ func (cmd Cmd) String() string {
 	return fmt.Sprintf("%s %s", cmd.Name, strings.Join(cmd.Args, " "))
 }
 
-func (cmd *Cmd) WithArg(arg string) *Cmd {
-	cmd.Args = append(cmd.Args, arg)
-
-	return cmd
-}
-
 func (cmd *Cmd) WithArgs(args ...string) *Cmd {
 	for _, arg := range args {
-		cmd.WithArg(arg)
+		cmd.Args = append(cmd.Args, arg)
 	}
-
 	return cmd
 }
 
@@ -87,7 +80,11 @@ func (cmd *Cmd) Exec() error {
 	return syscall.Exec(binary, args, os.Environ())
 }
 
-func Pipeline(list ...*Cmd) (pipeStdout, pipeStderr string, perr error) {
+func Pipeline(list ...*Cmd) (string, string, error) {
+	var output bytes.Buffer
+	var stderr bytes.Buffer
+	var err error
+
 	// Require at least one command
 	if len(list) < 1 {
 		return "", "", nil
@@ -103,12 +100,8 @@ func Pipeline(list ...*Cmd) (pipeStdout, pipeStderr string, perr error) {
 	}
 
 	// Collect the output from the command(s)
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-
 	last := len(cmds) - 1
 	for i, cmd := range cmds[:last] {
-		var err error
 		// Connect each command's stdin to the previous command's stdout
 		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
 			return "", "", err
@@ -122,7 +115,7 @@ func Pipeline(list ...*Cmd) (pipeStdout, pipeStderr string, perr error) {
 
 	// Start each command
 	for _, cmd := range cmds {
-		if err := cmd.Start(); err != nil {
+		if err = cmd.Start(); err != nil {
 			return output.String(), stderr.String(), err
 		}
 	}
@@ -152,6 +145,6 @@ func New(cmd string) *Cmd {
 	return &Cmd{Name: name, Args: args}
 }
 
-func NewWithArray(cmd []string) *Cmd {
-	return &Cmd{Name: cmd[0], Args: cmd[1:]}
+func NewWithArray(cmd string, args ...string) *Cmd {
+	return &Cmd{Name: cmd, Args: args}
 }
