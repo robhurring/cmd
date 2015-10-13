@@ -30,7 +30,7 @@ type Cmd struct {
 	Args []string
 }
 
-func (cmd Cmd) String() string {
+func (cmd *Cmd) String() string {
 	return fmt.Sprintf("%s %s", cmd.Name, strings.Join(cmd.Args, " "))
 }
 
