@@ -87,7 +87,7 @@ func (cmd *Cmd) Exec() error {
 	return syscall.Exec(binary, args, os.Environ())
 }
 
-func Pipeline(list ...*Cmd) (pipeStdout, pipeStderr string, perr error) {
+func Pipeline(list ...*Cmd) (string, string, error) {
 	// Require at least one command
 	if len(list) < 1 {
 		return "", "", nil
