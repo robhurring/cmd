@@ -2,6 +2,12 @@ package cmd
 
 import "testing"
 
+func TestCopy(t *testing.T) {
+	if err := Copy("data string"); err != nil {
+		t.Errorf("Copy error is %s", err)
+	}
+}
+
 func TestName(t *testing.T) {
 	cmd := New("ls")
 

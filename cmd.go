@@ -12,28 +12,46 @@ import (
 	"github.com/kballard/go-shellquote"
 )
 
-// Copy OSX only
+var (
+	// isWindows determines if running on Windows or *nix
+	isWindows = runtime.GOOS == "windows"
+)
+
+// Cmd represents an OS command
+type Cmd struct {
+	// Name is the name of the command
+	Name string
+	// Args are any args to pass to the command
+	Args []string
+}
+
+// Copy copies a string to the OS clipboard
 func Copy(data string) error {
+	var cpCmd string
+	if isWindows {
+		cpCmd = "clip"
+	} else {
+		cpCmd = "pbcopy"
+	}
+
 	echo := New("echo").WithArgs(data)
-	copy := New("pbcopy")
+	copy := New(cpCmd)
 	_, _, err := Pipeline(echo, copy)
 	return err
 }
 
+// Open opens a location
 // OSX only
 func Open(location string) error {
 	return New("open").WithArgs(location).Run()
 }
 
-type Cmd struct {
-	Name string
-	Args []string
-}
-
+// String prints the command as a string
 func (cmd *Cmd) String() string {
 	return fmt.Sprintf("%s %s", cmd.Name, strings.Join(cmd.Args, " "))
 }
 
+// WithArgs adds arguments to the current command
 func (cmd *Cmd) WithArgs(args ...string) *Cmd {
 	for _, arg := range args {
 		cmd.Args = append(cmd.Args, arg)
@@ -41,6 +59,7 @@ func (cmd *Cmd) WithArgs(args ...string) *Cmd {
 	return cmd
 }
 
+// CombinedOutput runs the command and returns its combined standard output and standard error.
 func (cmd *Cmd) CombinedOutput() (string, error) {
 	output, err := exec.Command(cmd.Name, cmd.Args...).CombinedOutput()
 	return string(output), err
@@ -49,11 +68,10 @@ func (cmd *Cmd) CombinedOutput() (string, error) {
 // Run runs command with `Exec` on platforms except Windows
 // which only supports `Spawn`
 func (cmd *Cmd) Run() error {
-	if runtime.GOOS == "windows" {
+	if isWindows {
 		return cmd.Spawn()
-	} else {
-		return cmd.Exec()
 	}
+	return cmd.Exec()
 }
 
 // Spawn runs command with spawn(3)
@@ -80,6 +98,8 @@ func (cmd *Cmd) Exec() error {
 	return syscall.Exec(binary, args, os.Environ())
 }
 
+// Pipeline runs a series of commands, passing the output of one command to the
+// input of the next
 func Pipeline(list ...*Cmd) (string, string, error) {
 	var output bytes.Buffer
 	var stderr bytes.Buffer
@@ -131,14 +151,15 @@ func Pipeline(list ...*Cmd) (string, string, error) {
 	return output.String(), stderr.String(), nil
 }
 
+// New creates a new Cmd instance
 func New(cmd string) *Cmd {
+	var args []string
 	cmds, err := shellquote.Split(cmd)
 	if err != nil {
 		panic(err)
 	}
 
 	name := cmds[0]
-	args := make([]string, 0)
 	for _, arg := range cmds[1:] {
 		args = append(args, arg)
 	}
